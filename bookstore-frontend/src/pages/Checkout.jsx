@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { CartContext } from "../context/CartContext";
 
 export default function Checkout() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [status] = useState(2);
+  const { cartItems, removeFromCart } = useContext(CartContext);
+  const navigate = useNavigate();
+  const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   return (
     <div
@@ -48,7 +55,44 @@ export default function Checkout() {
         />
 
         <button
-          onClick={() => setOrderPlaced(true)}
+          onClick={async () => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+              toast.error("Please login first!", { position: "bottom-right" });
+              navigate("/login");
+              return;
+            }
+
+            if (!cartItems || cartItems.length === 0) {
+              toast.error("Your cart is empty", { position: "bottom-right" });
+              return;
+            }
+
+            try {
+              const orderItems = cartItems.map((item) => ({
+                // book id may not be available for frontend-only items; backend accepts missing book ref
+                title: item.title,
+                price: item.price,
+                image: item.image || "",
+                quantity: item.quantity,
+              }));
+
+              await axios.post(
+                `${apiBaseUrl}/api/orders`,
+                { orderItems, paymentMethod: "Cash on Delivery" },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+
+              // clear local cart
+              cartItems.forEach((it) => removeFromCart(it.id));
+
+              setOrderPlaced(true);
+              toast.success("Order placed successfully!", { position: "bottom-right" });
+            } catch (err) {
+              const msg = err?.response?.data?.message || "Failed to place order.";
+              toast.error(msg, { position: "bottom-right" });
+            }
+          }}
           style={{
             width: "100%",
             padding: "12px",

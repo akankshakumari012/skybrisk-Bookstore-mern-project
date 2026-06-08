@@ -6,20 +6,40 @@ const { auth, admin } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 router.post("/", auth, async (req, res) => {
-  const { paymentMethod = "Cash on Delivery" } = req.body;
-  const cart = await Cart.findOne({ user: req.user._id }).populate("items.book");
+  const { paymentMethod = "Cash on Delivery", orderItems: bodyOrderItems } = req.body;
 
-  if (!cart || cart.items.length === 0) {
-    return res.status(400).json({ message: "Your cart is empty" });
+  // If client provided orderItems in the request body, use them (useful when frontend
+  // maintains cart locally and hasn't synced to server-side Cart). Otherwise, fall
+  // back to server-side Cart for the authenticated user.
+  let orderItems = [];
+
+  if (Array.isArray(bodyOrderItems) && bodyOrderItems.length > 0) {
+    orderItems = bodyOrderItems.map((item) => ({
+      book: item.book || undefined,
+      title: item.title,
+      price: item.price,
+      image: item.image || "",
+      quantity: item.quantity,
+    }));
+  } else {
+    const cart = await Cart.findOne({ user: req.user._id }).populate("items.book");
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Your cart is empty" });
+    }
+
+    orderItems = cart.items.map((item) => ({
+      book: item.book?._id,
+      title: item.title,
+      price: item.price,
+      image: item.image,
+      quantity: item.quantity,
+    }));
+
+    // clear server-side cart after creating order
+    cart.items = [];
+    await cart.save();
   }
-
-  const orderItems = cart.items.map((item) => ({
-    book: item.book._id,
-    title: item.title,
-    price: item.price,
-    image: item.image,
-    quantity: item.quantity,
-  }));
 
   const totalPrice = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -32,9 +52,6 @@ router.post("/", auth, async (req, res) => {
     isPaid: true,
     paidAt: new Date(),
   });
-
-  cart.items = [];
-  await cart.save();
 
   res.status(201).json({ message: "Order placed successfully", order });
 });
