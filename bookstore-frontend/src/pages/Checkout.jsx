@@ -9,8 +9,7 @@ export default function Checkout() {
   const [status] = useState(2);
   const { cartItems, removeFromCart } = useContext(CartContext);
   const navigate = useNavigate();
-  const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+  const apiBaseUrl = import.meta.env.VITE_API_URL || "https://skybrisk-bookstore-mern-project.onrender.com";
   return (
     <div
       style={{

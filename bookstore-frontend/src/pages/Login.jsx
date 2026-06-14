@@ -8,7 +8,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const apiBaseUrl = import.meta.env.VITE_API_URL || "https://skybrisk-bookstore-mern-project.onrender.com";
 
   const handleLogin = async (event) => {
     event.preventDefault();
